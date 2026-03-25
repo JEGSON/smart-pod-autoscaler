@@ -1,0 +1,4 @@
+image:
+  repository: ghcr.io/jegson/smart-pod-autoscaler
+  pullPolicy: IfNotPresent
+  tag: "latest"

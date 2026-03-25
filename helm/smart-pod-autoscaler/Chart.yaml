@@ -1,0 +1,21 @@
+apiVersion: v2
+name: smart-pod-autoscaler
+description: A Kubernetes operator that scales deployments based on external metrics from Prometheus and Kafka
+type: application
+version: 0.1.0        # chart version — bump this on every release
+appVersion: "0.1.0"   # your controller image version
+
+keywords:
+  - kubernetes
+  - autoscaler
+  - operator
+  - prometheus
+  - kafka
+
+home: https://github.com/JEGSON/smart-pod-autoscaler
+sources:
+  - https://github.com/JEGSON/smart-pod-autoscaler
+
+maintainers:
+  - name: JEGSON
+    url: https://github.com/JEGSON

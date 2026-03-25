@@ -1,23 +1,24 @@
-name: E2E Tests
+name: CI Tests
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  PATH: ${{ github.workspace }}/bin:$PATH
+  GO111MODULE: "on"
 
 jobs:
-  test-e2e:
-    name: Run E2E Tests
+  unit-tests:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Add ./bin to PATH
+        run: echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -29,14 +30,53 @@ jobs:
         run: |
           mkdir -p ./bin
           go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
-          mv $(go env GOPATH)/bin/controller-gen ./bin/
+          mv $(go env GOBIN)/controller-gen ./bin/ || mv $(go env GOPATH)/bin/controller-gen ./bin/ || true
 
       - name: Install setup-envtest
         run: |
           mkdir -p ./bin
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.23
-          mv $(go env GOPATH)/bin/setup-envtest ./bin/
+          mv $(go env GOBIN)/setup-envtest ./bin/ || mv $(go env GOPATH)/bin/setup-envtest ./bin/ || true
           ./bin/setup-envtest use 1.35.0 --bin-dir ./bin
+
+      - name: Tidy Go modules
+        run: go mod tidy
+
+      - name: Run Unit Tests
+        run: go test ./... -coverpkg=./... -coverprofile=cover.out
+
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add ./bin to PATH
+        run: echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.8'
+          cache: true
+
+      - name: Install controller-gen
+        run: |
+          mkdir -p ./bin
+          go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
+          mv $(go env GOBIN)/controller-gen ./bin/ || mv $(go env GOPATH)/bin/controller-gen ./bin/ || true
+
+      - name: Install setup-envtest
+        run: |
+          mkdir -p ./bin
+          go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.23
+          mv $(go env GOBIN)/setup-envtest ./bin/ || mv $(go env GOPATH)/bin/setup-envtest ./bin/ || true
+          ./bin/setup-envtest use 1.35.0 --bin-dir ./bin
+
+      - name: Tidy Go modules
+        run: go mod tidy
 
       - name: Set up Kind
         uses: helm/kind-action@v1.10.0
@@ -44,11 +84,9 @@ jobs:
           config: test/kind-config.yaml
           cluster_name: smart-pod-autoscaler-test-e2e
 
-      - name: Tidy Go modules
-        run: go mod tidy
-
-      - name: Build controller image
-        run: docker build -t controller:latest .
+      - name: Build controller image with cache
+        run: |
+          docker build --cache-from controller:latest -t controller:latest .
 
       - name: Run E2E Tests
         run: |

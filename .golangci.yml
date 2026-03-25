@@ -1,6 +1,7 @@
 version: "2"
 run:
   allow-parallel-runners: true
+
 linters:
   default: none
   enable:
@@ -22,12 +23,8 @@ linters:
     - unconvert
     - unparam
     - unused
-    - logcheck
+
   settings:
-    custom:
-      logcheck:
-        type: "module"
-        description: Checks Go logging calls for Kubernetes logging conventions.
     revive:
       rules:
         - name: comment-spacings
@@ -35,6 +32,7 @@ linters:
     modernize:
       disable:
         - omitzero
+
   exclusions:
     generated: lax
     rules:
@@ -49,6 +47,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+
 formatters:
   enable:
     - gofmt

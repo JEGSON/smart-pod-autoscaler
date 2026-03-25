@@ -5,36 +5,37 @@ on:
     branches:
       - main
     paths:
-      - "helm/**"           # only runs when helm chart changes
+      - "helm/**"
       - ".github/workflows/release-chart.yml"
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # needed to push to gh-pages branch
+      contents: write
 
     steps:
-      # ── 1. Checkout full history (chart-releaser needs it) ──────────────
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ── 2. Configure Git ────────────────────────────────────────────────
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # ── 3. Install Helm ─────────────────────────────────────────────────
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      # ── 4. Package and release chart using chart-releaser ───────────────
+      # Fetch the gh-pages branch explicitly so cr can find it
+      - name: Fetch gh-pages branch
+        run: git fetch origin gh-pages:gh-pages
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
         with:
-          charts_dir: helm          # looks for charts inside ./helm/
+          charts_dir: helm
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/JEGSON/smart-pod-autoscaler/internal/metrics"
 	controllermetrics "github.com/JEGSON/smart-pod-autoscaler/internal/metrics"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -166,7 +165,7 @@ func (r *SmartScalerReconciler) fetchMetric(
 	spec := scaler.Spec.Metric
 	switch spec.Source {
 	case "prometheus":
-		fetcher, err := metrics.NewPrometheusFetcher(spec.Endpoint, spec.Query)
+		fetcher, err := controllermetrics.NewPrometheusFetcher(spec.Endpoint, spec.Query)
 		if err != nil {
 			log.FromContext(ctx).Info("Prometheus unavailable, using stub value")
 			return 850, nil
@@ -179,11 +178,15 @@ func (r *SmartScalerReconciler) fetchMetric(
 		return value, nil
 
 	case "kafka":
-		fetcher, err := metrics.NewKafkaFetcher(spec.Endpoint, spec.Query, "my-consumer-group")
+		fetcher, err := controllermetrics.NewKafkaFetcher(spec.Endpoint, spec.Query, "my-consumer-group")
 		if err != nil {
 			return 0, err
 		}
-		defer fetcher.Close()
+		defer func() {
+			if err := fetcher.Close(); err != nil {
+				log.FromContext(ctx).Error(err, "Failed to close Kafka fetcher")
+			}
+		}()
 		return fetcher.Fetch(ctx)
 
 	default:

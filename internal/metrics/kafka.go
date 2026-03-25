@@ -70,10 +70,7 @@ func (k *KafkaFetcher) Fetch(ctx context.Context) (int64, error) {
 		}
 
 		committedOffset := block.Offset
-		lag := latestOffset - committedOffset
-		if lag < 0 {
-			lag = 0
-		}
+		lag := max(latestOffset-committedOffset, 0)
 		totalLag += lag
 	}
 

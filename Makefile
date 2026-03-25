@@ -67,24 +67,25 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= smart-pod-autoscaler-test-e2e
 
-.PHONY: setup-test-e2e
-setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
-	@command -v $(KIND) >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
+.PHONY: kind-create
+kind-create: ## Create a Kind cluster with the specified configuration.
+	@if ! command -v $(KIND) >/dev/null 2>&1; then \
+		echo "Kind is not installed. Please install Kind (e.g., 'brew install kind' on Mac)."; \
 		exit 1; \
-	}
-	@case "$$($(KIND) get clusters)" in \
-		*"$(KIND_CLUSTER)"*) \
-			echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation." ;; \
-		*) \
-			echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
-			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
-	esac
+	fi
+	$(KIND) create cluster --name $(KIND_CLUSTER) --config test/kind-config.yaml
+
+.PHONY: kind-delete
+kind-delete: ## Delete the Kind cluster.
+	$(KIND) delete cluster --name $(KIND_CLUSTER)
+
+.PHONY: kind-load
+kind-load: docker-build ## Load the manager image into the Kind cluster.
+	$(KIND) load docker-image $(IMG) --name $(KIND_CLUSTER)
 
 .PHONY: test-e2e
-test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+test-e2e: manifests generate fmt vet kind-load ## Run the e2e tests. Assumes Kind cluster is already created.
 	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
-	$(MAKE) cleanup-test-e2e
 
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests

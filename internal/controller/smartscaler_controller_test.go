@@ -18,7 +18,9 @@ import (
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-func makeDeployment(name, namespace string, replicas int32) *appsv1.Deployment {
+func makeDeployment(name string) *appsv1.Deployment {
+	const namespace = "default"
+	replicas := int32(2)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -43,7 +45,8 @@ func makeDeployment(name, namespace string, replicas int32) *appsv1.Deployment {
 	}
 }
 
-func makeScaler(name, namespace, deployment string) *autoscalerv1alpha1.SmartScaler {
+func makeScaler(name, deployment string) *autoscalerv1alpha1.SmartScaler {
+	const namespace = "default"
 	return &autoscalerv1alpha1.SmartScaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -96,11 +99,11 @@ var _ = Describe("SmartScaler Controller", func() {
 			scalerName := "scaler-scale-up"
 
 			// Create the target deployment with 2 replicas
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
 			// Create the SmartScaler
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
 
 			// Wait for controller to scale the deployment up
@@ -126,10 +129,10 @@ var _ = Describe("SmartScaler Controller", func() {
 			deployName := "min-replicas-test"
 			scalerName := "scaler-min"
 
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			scaler.Spec.MinReplicas = 2
 			// Push scaleDownThreshold very high so scale down always wants to fire
 			// but minReplicas should block it
@@ -155,10 +158,10 @@ var _ = Describe("SmartScaler Controller", func() {
 			deployName := "max-replicas-test"
 			scalerName := "scaler-max"
 
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			scaler.Spec.MaxReplicas = 3
 			scaler.Spec.ScalingPolicy.ScaleUpThreshold = 1 // always trigger scale up
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
@@ -194,7 +197,7 @@ var _ = Describe("SmartScaler Controller", func() {
 			scalerName := "scaler-no-deploy"
 
 			// Point scaler at a deployment that doesn't exist
-			scaler := makeScaler(scalerName, namespace, "non-existent-deployment")
+			scaler := makeScaler(scalerName, "non-existent-deployment")
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
 
 			scalerKey := types.NamespacedName{Name: scalerName, Namespace: namespace}
@@ -216,10 +219,10 @@ var _ = Describe("SmartScaler Controller", func() {
 			deployName := "status-test-deploy"
 			scalerName := "scaler-status"
 
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
 
 			scalerKey := types.NamespacedName{Name: scalerName, Namespace: namespace}
@@ -239,10 +242,10 @@ var _ = Describe("SmartScaler Controller", func() {
 			deployName := "metric-status-deploy"
 			scalerName := "scaler-metric-status"
 
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
 
 			scalerKey := types.NamespacedName{Name: scalerName, Namespace: namespace}
@@ -266,10 +269,10 @@ var _ = Describe("SmartScaler Controller", func() {
 			deployName := "delete-test-deploy"
 			scalerName := "scaler-delete"
 
-			deploy := makeDeployment(deployName, namespace, 2)
+			deploy := makeDeployment(deployName)
 			Expect(k8sClient.Create(ctx, deploy)).To(Succeed())
 
-			scaler := makeScaler(scalerName, namespace, deployName)
+			scaler := makeScaler(scalerName, deployName)
 			Expect(k8sClient.Create(ctx, scaler)).To(Succeed())
 
 			// Delete and confirm it's gone

@@ -1,0 +1,17 @@
+apiVersion: autoscaler.autoscaler.io/v1alpha1
+kind: SmartScaler
+metadata:
+  name: worker-scaler
+  namespace: default
+spec:
+  targetDeployment: queue-worker
+  minReplicas: 1
+  maxReplicas: 10
+  metric:
+    source: prometheus
+    endpoint: http://localhost:9090
+    query: "sum(kube_pod_info)"
+  scalingPolicy:
+    scaleUpThreshold: 10
+    scaleDownThreshold: 2
+    cooldownSeconds: 30

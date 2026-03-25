@@ -1,0 +1,327 @@
+{
+    "title": "Smart Pod Autoscaler",
+    "uid": "smartscaler-dashboard",
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+        "from": "now-30m",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "Current Replicas",
+            "type": "stat",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 5
+                            },
+                            {
+                                "color": "red",
+                                "value": 8
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "smartscaler_current_replicas",
+                    "legendFormat": "{{deployment}}"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Current Metric Value",
+            "type": "stat",
+            "gridPos": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 500
+                            },
+                            {
+                                "color": "red",
+                                "value": 800
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "smartscaler_current_metric_value",
+                    "legendFormat": "{{scaler}} ({{source}})"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Total Scale Up Events",
+            "type": "stat",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "green",
+                        "mode": "fixed"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "sum(smartscaler_scale_up_total) or vector(0)",
+                    "legendFormat": "Scale Up Events"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Total Scale Down Events",
+            "type": "stat",
+            "gridPos": {
+                "x": 18,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "blue",
+                        "mode": "fixed"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "sum(smartscaler_scale_down_total) or vector(0)",
+                    "legendFormat": "Scale Down Events"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Replica Count Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "multi"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "smartscaler_current_replicas",
+                    "legendFormat": "{{deployment}} replicas"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Metric Value Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "multi"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "smartscaler_current_metric_value",
+                    "legendFormat": "{{scaler}} metric value"
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Scale Events Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "multi"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "lineWidth": 2
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "rate(smartscaler_scale_up_total[5m])",
+                    "legendFormat": "Scale Up Rate"
+                },
+                {
+                    "expr": "rate(smartscaler_scale_down_total[5m])",
+                    "legendFormat": "Scale Down Rate"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Reconcile Errors Over Time",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom"
+                },
+                "tooltip": {
+                    "mode": "multi"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "lineWidth": 2
+                    },
+                    "color": {
+                        "fixedColor": "red",
+                        "mode": "fixed"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "rate(smartscaler_reconcile_errors_total[5m])",
+                    "legendFormat": "{{scaler}} errors/s"
+                }
+            ]
+        }
+    ]
+}

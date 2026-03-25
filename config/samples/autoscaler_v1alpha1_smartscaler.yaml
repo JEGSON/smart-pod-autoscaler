@@ -1,0 +1,9 @@
+apiVersion: autoscaler.autoscaler.io/v1alpha1
+kind: SmartScaler
+metadata:
+  labels:
+    app.kubernetes.io/name: smart-pod-autoscaler
+    app.kubernetes.io/managed-by: kustomize
+  name: smartscaler-sample
+spec:
+  # TODO(user): Add fields here

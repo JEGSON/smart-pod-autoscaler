@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "smart-pod-autoscaler"
+    static_configs:
+      - targets:
+          - "host.docker.internal:8080"  # your controller running locally
+    metrics_path: /metrics

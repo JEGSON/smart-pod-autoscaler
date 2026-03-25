@@ -47,6 +47,7 @@ func main() {
 	var probeAddr string
 	var enableLeaderElection bool
 	var enableHTTP2 bool
+	var webhookCertPath string
 	var tlsOpts []func(*tls.Config)
 
 	flag.StringVar(
@@ -63,6 +64,7 @@ func main() {
 	)
 	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false, "Enable HTTP/2 for metrics and webhook servers")
+	flag.StringVar(&webhookCertPath, "webhook-cert-path", "/tmp/k8s-webhook-server/serving-certs", "The directory where the webhook certificates are located.")
 
 	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
@@ -89,15 +91,17 @@ func main() {
 
 	var webhookServer webhook.Server
 	if enableWebhooks {
-		certDir := "/tmp/k8s-webhook-server/serving-certs"
-		if err := os.MkdirAll(certDir, 0o755); err != nil {
-			setupLog.Error(err, "Failed to create webhook cert directory")
-			os.Exit(1)
-		}
+		certDir := webhookCertPath
+		if os.Getenv("KUBERNETES_SERVICE_HOST") == "" {
+			if err := os.MkdirAll(certDir, 0o755); err != nil {
+				setupLog.Error(err, "Failed to create webhook cert directory")
+				os.Exit(1)
+			}
 
-		if err := ensureCerts(certDir); err != nil {
-			setupLog.Error(err, "Failed to ensure webhook certificates")
-			os.Exit(1)
+			if err := ensureCerts(certDir); err != nil {
+				setupLog.Error(err, "Failed to ensure webhook certificates")
+				os.Exit(1)
+			}
 		}
 
 		webhookServer = webhook.NewServer(webhook.Options{

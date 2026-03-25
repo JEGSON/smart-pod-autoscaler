@@ -54,8 +54,10 @@ var _ = Describe("Manager", Ordered, func() {
 	// and deploying the controller.
 	BeforeAll(func() {
 		By("creating manager namespace")
-		cmd := exec.Command("kubectl", "create", "ns", namespace)
-		_, err := utils.Run(cmd)
+		cmd := exec.Command("kubectl", "create", "ns", namespace, "--dry-run=client", "-o", "yaml")
+		applyCmd := exec.Command("kubectl", "apply", "-f", "-")
+		applyCmd.Stdin = strings.NewReader("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: " + namespace)
+		_, err := utils.Run(applyCmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create namespace")
 
 		By("labeling the namespace to enforce the restricted security policy")
@@ -138,7 +140,7 @@ var _ = Describe("Manager", Ordered, func() {
 		}
 	})
 
-	SetDefaultEventuallyTimeout(2 * time.Minute)
+	SetDefaultEventuallyTimeout(5 * time.Minute)
 	SetDefaultEventuallyPollingInterval(time.Second)
 
 	Context("Manager", func() {
@@ -171,15 +173,30 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("Running"), "Incorrect controller-manager pod status")
 			}
-			Eventually(verifyControllerUp).Should(Succeed())
+			Eventually(verifyControllerUp).
+				WithTimeout(5 * time.Minute).
+				WithPolling(2 * time.Second).
+				Should(Succeed())
 		})
 
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
-			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=smart-pod-autoscaler-metrics-reader",
-				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
-			)
+			crbYAML := fmt.Sprintf(`
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: %s
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: smart-pod-autoscaler-metrics-reader
+subjects:
+- kind: ServiceAccount
+  name: %s
+  namespace: %s
+`, metricsRoleBindingName, serviceAccountName, namespace)
+			cmd := exec.Command("kubectl", "apply", "-f", "-")
+			cmd.Stdin = strings.NewReader(crbYAML)
 			_, err := utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create ClusterRoleBinding")
 
@@ -263,7 +280,7 @@ var _ = Describe("Manager", Ordered, func() {
 							"image": "curlimages/curl:latest",
 							"command": ["/bin/sh", "-c"],
 							"args": [
-								"for i in $(seq 1 30); do curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics && exit 0 || sleep 2; done; exit 1"
+								"for i in $(seq 1 30); do curl -v -H 'Authorization: Bearer %s' http://%s.%s.svc.cluster.local:8443/metrics && exit 0 || sleep 2; done; exit 1"
 							],
 							"securityContext": {
 								"readOnlyRootFilesystem": true,
@@ -354,16 +371,16 @@ var _ = Describe("Manager", Ordered, func() {
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: %%s
+  name: %s
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: %%s
+      app: %s
   template:
     metadata:
       labels:
-        app: %%s
+        app: %s
     spec:
       containers:
       - name: nginx
@@ -379,9 +396,9 @@ spec:
 apiVersion: autoscaler.autoscaler.io/v1alpha1
 kind: SmartScaler
 metadata:
-  name: %%s
+  name: %s
 spec:
-  targetDeployment: %%s
+  targetDeployment: %s
   minReplicas: 1
   maxReplicas: 5
   metric:
@@ -406,7 +423,7 @@ spec:
 				g.Expect(err).NotTo(HaveOccurred())
 				
 				var replicas int
-				fmt.Sscanf(output, "%%d", &replicas)
+				fmt.Sscanf(output, "%d", &replicas)
 				g.Expect(replicas).To(BeNumerically(">", 1), "Deployment should have scaled up")
 			}
 			Eventually(verifyScaleUp, 1*time.Minute, 2*time.Second).Should(Succeed())

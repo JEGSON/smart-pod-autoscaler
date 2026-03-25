@@ -2,7 +2,9 @@ name: E2E Tests
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   test-e2e:
@@ -15,18 +17,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.23' # Use stable version
+          cache: true
 
-      - name: Install the latest version of kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - name: Set up Kind
+        uses: helm/kind-action@v1.10.0
+        with:
+          config: test/kind-config.yaml
+          cluster_name: smart-pod-autoscaler-test-e2e
 
-      - name: Verify kind installation
-        run: kind version
-
-      - name: Running Test e2e
+      - name: Run E2E Tests
         run: |
           go mod tidy
-          make test-e2e
+          make test-e2e IMG=controller:latest

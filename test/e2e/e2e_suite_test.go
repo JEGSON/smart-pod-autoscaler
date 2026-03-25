@@ -33,7 +33,7 @@ import (
 
 var (
 	// managerImage is the manager image to be built and loaded for testing.
-	managerImage = "example.com/smart-pod-autoscaler:v0.0.1"
+	managerImage = "controller:latest"
 	// shouldCleanupCertManager tracks whether CertManager was installed by this suite.
 	shouldCleanupCertManager = false
 )
@@ -86,6 +86,9 @@ func setupCertManager() {
 
 	By("installing CertManager")
 	Expect(utils.InstallCertManager()).To(Succeed(), "Failed to install CertManager")
+
+	By("waiting for CertManager CRDs to be ready")
+	Expect(utils.WaitForCertManagerCRDs()).To(Succeed(), "CertManager CRDs did not become ready")
 }
 
 // teardownCertManager uninstalls CertManager if it was installed by setupCertManager.

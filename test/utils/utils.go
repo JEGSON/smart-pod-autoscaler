@@ -32,7 +32,7 @@ const (
 	certmanagerURLTmpl = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.yaml"
 
 	defaultKindBinary  = "kind"
-	defaultKindCluster = "kind"
+	defaultKindCluster = "smart-pod-autoscaler-test-e2e"
 )
 
 func warnError(err error) {
@@ -98,6 +98,21 @@ func InstallCertManager() error {
 
 	_, err := Run(cmd)
 	return err
+}
+
+// WaitForCertManagerCRDs waits for the cert-manager CRDs to be available
+func WaitForCertManagerCRDs() error {
+	crds := []string{
+		"certificates.cert-manager.io",
+		"issuers.cert-manager.io",
+	}
+	for _, crd := range crds {
+		cmd := exec.Command("kubectl", "wait", "--for", "condition=Established", "crd/"+crd, "--timeout", "2m")
+		if _, err := Run(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // IsCertManagerCRDsInstalled checks if any Cert Manager CRDs are installed

@@ -62,9 +62,24 @@ func main() {
 		":8081",
 		"The address the probe endpoint binds to.",
 	)
-	flag.BoolVar(&enableLeaderElection, "leader-elect", true, "Enable leader election.")
-	flag.BoolVar(&enableHTTP2, "enable-http2", false, "Enable HTTP/2 for metrics and webhook servers")
-	flag.StringVar(&webhookCertPath, "webhook-cert-path", "/tmp/k8s-webhook-server/serving-certs", "The directory where the webhook certificates are located.")
+	flag.BoolVar(
+		&enableLeaderElection,
+		"leader-elect",
+		true,
+		"Enable leader election.",
+	)
+	flag.BoolVar(
+		&enableHTTP2,
+		"enable-http2",
+		false,
+		"Enable HTTP/2 for metrics and webhook servers",
+	)
+	flag.StringVar(
+		&webhookCertPath,
+		"webhook-cert-path",
+		"/tmp/k8s-webhook-server/serving-certs",
+		"The directory where the webhook certificates are located.",
+	)
 
 	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
@@ -72,7 +87,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// Disable HTTP/2 if not enabled
 	if !enableHTTP2 {
 		tlsOpts = append(tlsOpts, func(c *tls.Config) {
 			setupLog.Info("Disabling HTTP/2")
@@ -80,7 +94,6 @@ func main() {
 		})
 	}
 
-	// Metrics server
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: false,
@@ -111,7 +124,6 @@ func main() {
 		})
 	}
 
-	// Manager options — must be OUTSIDE the if-block
 	mgrOpts := ctrl.Options{
 		Scheme:                  scheme,
 		Metrics:                 metricsServerOptions,
@@ -119,17 +131,15 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "smart-pod-autoscaler-leader",
 		LeaderElectionNamespace: "default",
-		WebhookServer:           webhookServer, // nil if webhooks are disabled
+		WebhookServer:           webhookServer,
 	}
 
-	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
 	if err != nil {
 		setupLog.Error(err, "Failed to start manager")
 		os.Exit(1)
 	}
 
-	// Controller setup
 	if err := (&controller.SmartScalerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -138,7 +148,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Webhook setup
 	if enableWebhooks {
 		if err := webhookv1alpha1.SetupSmartScalerWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "Unable to set up webhook for SmartScaler")
@@ -146,7 +155,6 @@ func main() {
 		}
 	}
 
-	// Health checks
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "Failed to set up health check")
 		os.Exit(1)
@@ -167,7 +175,6 @@ func ensureCerts(certDir string) error {
 	certPath := filepath.Join(certDir, "tls.crt")
 	keyPath := filepath.Join(certDir, "tls.key")
 
-	// Check if certificates already exist
 	if _, err := os.Stat(certPath); err == nil {
 		if _, err := os.Stat(keyPath); err == nil {
 			return nil
@@ -176,13 +183,11 @@ func ensureCerts(certDir string) error {
 
 	setupLog.Info("Generating self-signed certificates for local webhook server", "dir", certDir)
 
-	// Generate a new private key
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return err
 	}
 
-	// Create a certificate template
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 
@@ -207,13 +212,11 @@ func ensureCerts(certDir string) error {
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
 	}
 
-	// Create the certificate
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
 		return err
 	}
 
-	// Write the certificate to a file
 	certOut, err := os.Create(certPath)
 	if err != nil {
 		return err
@@ -225,7 +228,6 @@ func ensureCerts(certDir string) error {
 		return err
 	}
 
-	// Write the private key to a file
 	keyOut, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err

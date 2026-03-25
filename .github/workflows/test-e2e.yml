@@ -8,6 +8,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PATH: ${{ github.workspace }}/bin:$PATH
 
 jobs:
   test-e2e:
@@ -21,18 +22,21 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.8'  # match main test.yml
+          go-version: '1.25.8'
           cache: true
 
       - name: Install controller-gen
         run: |
           mkdir -p ./bin
           go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
+          mv $(go env GOPATH)/bin/controller-gen ./bin/
 
-      - name: Setup envtest binaries
+      - name: Install setup-envtest
         run: |
+          mkdir -p ./bin
           go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.23
-          setup-envtest use 1.35.x --bin-dir ./bin
+          mv $(go env GOPATH)/bin/setup-envtest ./bin/
+          ./bin/setup-envtest use 1.35.0 --bin-dir ./bin
 
       - name: Set up Kind
         uses: helm/kind-action@v1.10.0
@@ -44,8 +48,9 @@ jobs:
         run: go mod tidy
 
       - name: Build controller image
-        run: |
-          docker build -t controller:latest .
+        run: docker build -t controller:latest .
 
       - name: Run E2E Tests
-        run: make test-e2e IMG=controller:latest
+        run: |
+          export KUBEBUILDER_ASSETS=$(pwd)/bin
+          make test-e2e IMG=controller:latest

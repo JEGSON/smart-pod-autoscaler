@@ -156,8 +156,11 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 
 .PHONY: setup-envtest
 setup-envtest: envtest
+	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
 	@"$(ENVTEST)" use $(ENVTEST_K8S_VERSION) --bin-dir "$(LOCALBIN)" -p path || { \
-		echo "Error: Failed to set up envtest binaries"; exit 1; }
+		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
+		exit 1; \
+	}
 
 .PHONY: envtest
 envtest: $(ENVTEST)

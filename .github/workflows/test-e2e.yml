@@ -13,38 +13,42 @@ env:
 
 jobs:
   ci:
-    name: Lint, Test, E2E, Build & Push
+    name: Lint, Unit, and E2E Tests
     runs-on: ubuntu-latest
 
     steps:
-      # --- Checkout ---
+      # Ensure tar exists for checkout
+      - name: Ensure tar is installed
+        run: sudo apt-get update && sudo apt-get install -y tar
+
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- Setup Go ---
+      # Setup Go
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25.8'
           cache: true
 
-      # --- Install golangci-lint ---
+      # Install golangci-lint
       - name: Install golangci-lint
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin v1.55.2
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin v2.23.0
 
-      # --- Run Lint ---
+      # Run Lint
       - name: Run Lint
         run: ./bin/golangci-lint run
 
-      # --- Install controller-gen ---
+      # Install controller-gen
       - name: Install controller-gen
         run: |
           mkdir -p ./bin
           go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
           mv $(go env GOBIN)/controller-gen ./bin/ || mv $(go env GOPATH)/bin/controller-gen ./bin/
 
-      # --- Install setup-envtest ---
+      # Install setup-envtest and kubebuilder binaries
       - name: Install setup-envtest
         run: |
           mkdir -p ./bin
@@ -52,29 +56,25 @@ jobs:
           mv $(go env GOBIN)/setup-envtest ./bin/ || mv $(go env GOPATH)/bin/setup-envtest ./bin/
           ./bin/setup-envtest use 1.35.0 --bin-dir ./bin
 
-      # --- Tidy Go modules ---
+      # Tidy Go modules
       - name: Tidy Go modules
         run: go mod tidy
 
-      # --- Run Unit Tests ---
-      - name: Run Unit Tests
+      # Run Unit Tests
+      - name: Run Go Unit Tests
         run: go test ./... -coverpkg=./... -coverprofile=cover.out
 
-      # --- Set up Kind for E2E ---
-      - name: Set up Kind for E2E
+      # Set up Kind cluster for E2E
+      - name: Set up Kind
         uses: helm/kind-action@v1.10.0
         with:
           config: test/kind-config.yaml
           cluster_name: smart-pod-autoscaler-test-e2e
 
-      # --- Build Docker Image ---
+      # Build Docker controller image (lowercase tags for GHCR)
       - name: Build controller image
-        run: docker build -t ghcr.io/jegson/smart-pod-autoscaler:latest .
+        run: docker build -t controller:latest .
 
-      # --- Push Docker Image ---
-      - name: Push controller image
-        run: docker push ghcr.io/jegson/smart-pod-autoscaler:latest
-
-      # --- Run E2E Tests ---
+      # Run E2E tests
       - name: Run E2E Tests
-        run: make test-e2e IMG=ghcr.io/jegson/smart-pod-autoscaler:latest
+        run: make test-e2e IMG=controller:latest

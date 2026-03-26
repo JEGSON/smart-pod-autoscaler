@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,7 +36,7 @@ type SmartScalerReconciler struct {
 
 func (r *SmartScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Reconciling SmartScaler", "name", req.Name, "namespace", req.Namespace)
+	logger.Info("Starting reconciliation", "name", req.Name, "namespace", req.Namespace)
 
 	// ── STEP 1: Fetch SmartScaler ──────────────────────────────
 	scaler := &autoscalerv1alpha1.SmartScaler{}
@@ -67,7 +68,7 @@ func (r *SmartScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		if timeSince < cooldown {
 			remaining := cooldown - timeSince
-			logger.Info("Cooldown active", "remaining", remaining)
+			logger.Info("Cooldown is active", "remaining", remaining)
 			return ctrl.Result{RequeueAfter: remaining}, nil
 		}
 	}
@@ -112,7 +113,7 @@ func (r *SmartScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			controllermetrics.ScaleDownTotal.WithLabelValues(labels...).Inc()
 		}
 
-		logger.Info("Scaled", "from", current, "to", desired)
+		logger.Info("Scaled Deployment", "from", current, "to", desired)
 	}
 
 	// ── STEP 7: Update status ──────────────────────────────────
@@ -163,16 +164,17 @@ func (r *SmartScalerReconciler) fetchMetric(
 
 	// Real implementation
 	spec := scaler.Spec.Metric
+	logger := log.FromContext(ctx)
 	switch spec.Source {
 	case "prometheus":
 		fetcher, err := controllermetrics.NewPrometheusFetcher(spec.Endpoint, spec.Query)
 		if err != nil {
-			log.FromContext(ctx).Info("Prometheus unavailable, using stub value")
+			logger.Info("Prometheus is unavailable, using stub value")
 			return 850, nil
 		}
 		value, err := fetcher.Fetch(ctx)
 		if err != nil {
-			log.FromContext(ctx).Info("Prometheus fetch failed, using stub value", "error", err)
+			logger.Info("Prometheus fetch failed, using stub value", "error", err)
 			return 850, nil
 		}
 		return value, nil
@@ -184,13 +186,13 @@ func (r *SmartScalerReconciler) fetchMetric(
 		}
 		defer func() {
 			if err := fetcher.Close(); err != nil {
-				log.FromContext(ctx).Error(err, "Failed to close Kafka fetcher")
+				logger.Error(err, "Failed to close Kafka fetcher")
 			}
 		}()
 		return fetcher.Fetch(ctx)
 
 	default:
-		return 0, fmt.Errorf("unknown metric source: %s", spec.Source)
+		return 0, fmt.Errorf("Unknown metric source: %s", spec.Source)
 	}
 }
 
@@ -214,6 +216,21 @@ func (r *SmartScalerReconciler) updateStatus(
 	if replicas != previous {
 		scaler.Status.LastScaleTime = &now
 	}
+
+	// Update Conditions
+	condition := metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		Reason:             "ReconcileSucceeded",
+		Message:            message,
+		LastTransitionTime: now,
+	}
+	if replicas == 0 && message != "" {
+		condition.Status = metav1.ConditionFalse
+		condition.Reason = "ReconcileFailed"
+	}
+
+	meta.SetStatusCondition(&scaler.Status.Conditions, condition)
 
 	if err := r.Status().Update(ctx, scaler); err != nil {
 		return ctrl.Result{}, err

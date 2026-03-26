@@ -58,15 +58,23 @@ type SmartScalerStatus struct {
 
 	// Current metric value being tracked
 	CurrentMetricValue int64 `json:"currentMetricValue,omitempty"`
+
+	// Conditions represent the latest available observations of an object's state
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".spec.targetDeployment"
-// +kubebuilder:printcolumn:name="MinReplicas",type="integer",JSONPath=".spec.minReplicas"
-// +kubebuilder:printcolumn:name="MaxReplicas",type="integer",JSONPath=".spec.maxReplicas"
-// +kubebuilder:printcolumn:name="CurrentReplicas",type="integer",JSONPath=".status.currentReplicas"
-// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message"
+// +kubebuilder:printcolumn:name="Min",type="integer",JSONPath=".spec.minReplicas"
+// +kubebuilder:printcolumn:name="Max",type="integer",JSONPath=".spec.maxReplicas"
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".status.currentReplicas"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 type SmartScaler struct {
 	metav1.TypeMeta   `json:",inline"`

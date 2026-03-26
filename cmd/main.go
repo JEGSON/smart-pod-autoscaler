@@ -89,7 +89,7 @@ func main() {
 
 	if !enableHTTP2 {
 		tlsOpts = append(tlsOpts, func(c *tls.Config) {
-			setupLog.Info("Disabling HTTP/2")
+			setupLog.Info("Disabled HTTP/2")
 			c.NextProtos = []string{"http/1.1"}
 		})
 	}
@@ -181,7 +181,7 @@ func ensureCerts(certDir string) error {
 		}
 	}
 
-	setupLog.Info("Generating self-signed certificates for local webhook server", "dir", certDir)
+	setupLog.Info("Generated self-signed certificates for local webhook server", "dir", certDir)
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

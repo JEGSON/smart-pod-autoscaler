@@ -28,12 +28,17 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      # Fetch the gh-pages branch explicitly so cr can find it
+      # Install tar manually before chart-releaser needs it
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y tar || true
+
       - name: Fetch gh-pages branch
         run: git fetch origin gh-pages:gh-pages
 
+      # Downgrade to v1.5.0 — stable, no sudo issue
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@v1.5.0
         with:
           charts_dir: helm
           skip_existing: true

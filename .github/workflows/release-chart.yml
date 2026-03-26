@@ -1,8 +1,0 @@
-name: Release Helm Chart
-on:
-  workflow_dispatch:   # only runs when manually triggered now
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Chart is published manually to gh-pages"

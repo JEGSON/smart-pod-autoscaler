@@ -31,14 +31,12 @@ jobs:
           go-version: '1.25.x'
           cache: true
 
-      # Install golangci-lint
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin v1.64.5
-
-      # Run Lint
-      - name: Run Lint
-        run: ./bin/golangci-lint run
+      # Run Lint (Stable official action)
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+          args: --timeout=5m
 
       # Install controller-gen
       - name: Install controller-gen

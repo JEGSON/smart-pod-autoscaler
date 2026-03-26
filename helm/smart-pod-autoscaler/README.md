@@ -43,4 +43,4 @@ spec:
 | `image.tag` | `latest` | Image tag |
 | `resources.limits.cpu` | `500m` | CPU limit |
 | `resources.limits.memory` | `128Mi` | Memory limit |
-| `metrics.enabled` | `true` | Expose Prometheus metrics |
+| `metrics.enabled` | `true` | Expose Prometheus metrics | 

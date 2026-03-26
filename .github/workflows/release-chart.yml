@@ -10,16 +10,19 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
+    # Use Helm container (no sudo issues)
     container:
-      image: alpine/helm:latest   # ← runs as root, helm pre-installed, no sudo needed
+      image: alpine/helm:3.14.0
+
     permissions:
       contents: write
 
     steps:
-      - name: Install git
+      - name: Install dependencies
         run: apk add --no-cache git bash curl
 
-      - name: Checkout main
+      - name: Checkout main repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -33,10 +36,11 @@ jobs:
       - name: Package Helm chart
         run: |
           mkdir -p .chart-packages
+          helm dependency update helm/smart-pod-autoscaler || true
           helm package helm/smart-pod-autoscaler --destination .chart-packages
           ls -la .chart-packages/
 
-      - name: Checkout gh-pages
+      - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
           ref: gh-pages
@@ -45,11 +49,16 @@ jobs:
       - name: Update Helm repo index
         run: |
           cp .chart-packages/*.tgz gh-pages/
+
           helm repo index gh-pages/ \
-            --url https://JEGSON.github.io/smart-pod-autoscaler
+            --url https://jegson.github.io/smart-pod-autoscaler \
+            --merge gh-pages/index.yaml || \
+          helm repo index gh-pages/ \
+            --url https://jegson.github.io/smart-pod-autoscaler
+
           cat gh-pages/index.yaml
 
-      - name: Push to gh-pages
+      - name: Commit and push changes
         run: |
           cd gh-pages
           git add .

@@ -8,8 +8,12 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: 8080
       protocol: TCP
-      name: http
+      name: metrics
+    - port: 9443
+      targetPort: 9443
+      protocol: TCP
+      name: webhook-server
   selector:
     {{- include "smart-pod-autoscaler.selectorLabels" . | nindent 4 }}

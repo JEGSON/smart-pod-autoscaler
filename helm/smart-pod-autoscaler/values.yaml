@@ -1,4 +1,62 @@
+# Default values for smart-pod-autoscaler.
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
 image:
   repository: ghcr.io/jegson/smart-pod-autoscaler
   pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+webhook:
+  # The name of the secret containing the webhook certificates.
+  # If not set, it defaults to {{ include "smart-pod-autoscaler.fullname" . }}-webhook-server-cert
+  secretName: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

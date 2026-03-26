@@ -8,7 +8,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  PATH: ${{ github.workspace }}/bin:$PATH
   KUBEBUILDER_ASSETS: ${{ github.workspace }}/bin
 
 jobs:
@@ -17,19 +16,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Ensure tar exists for checkout
-      - name: Ensure tar is installed
-        run: sudo apt-get update && sudo apt-get install -y tar
-
       # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Add local bin to PATH
+      - name: Add local bin to PATH
+        run: echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
       # Setup Go
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.x'
           cache: true
 
       # Install golangci-lint

@@ -1,6 +1,6 @@
 module github.com/JEGSON/smart-pod-autoscaler
 
-go 1.25.3
+go 1.25.0
 
 require (
 	github.com/IBM/sarama v1.47.0

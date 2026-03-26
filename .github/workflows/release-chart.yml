@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - "helm/**"
-      - ".github/workflows/release-chart.yml"
 
 jobs:
   release:
@@ -15,7 +14,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -28,19 +27,29 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      # Install tar manually before chart-releaser needs it
-      - name: Install dependencies
+      - name: Package Helm chart
         run: |
-          apt-get update && apt-get install -y tar || true
+          mkdir -p .chart-packages
+          helm package helm/smart-pod-autoscaler --destination .chart-packages
+          ls -la .chart-packages/
 
-      - name: Fetch gh-pages branch
-        run: git fetch origin gh-pages:gh-pages
-
-      # Downgrade to v1.5.0 — stable, no sudo issue
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.5.0
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
         with:
-          charts_dir: helm
-          skip_existing: true
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update Helm repo index
+        run: |
+          cp .chart-packages/*.tgz gh-pages/
+          helm repo index gh-pages/ \
+            --url https://JEGSON.github.io/smart-pod-autoscaler
+          cat gh-pages/index.yaml
+
+      - name: Push to gh-pages
+        run: |
+          cd gh-pages
+          git add .
+          git diff --staged --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: release chart $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin gh-pages

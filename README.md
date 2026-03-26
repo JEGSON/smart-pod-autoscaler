@@ -1,135 +1,165 @@
-# smart-pod-autoscaler
-// TODO(user): Add simple overview of use/purpose
+# Smart Pod Autoscaler
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+[![Go Report Card](https://goreportcard.com/badge/github.com/JEGSON/smart-pod-autoscaler)](https://goreportcard.com/report/github.com/JEGSON/smart-pod-autoscaler)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Helm Chart](https://img.shields.io/badge/helm-chart-blue)](https://jegson.github.io/smart-pod-autoscaler)
+[![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org)
 
-## Getting Started
+A production-grade **Kubernetes Operator** written in Go that scales
+deployments based on external metrics — going beyond what the default
+HPA supports.
 
-### Prerequisites
-- go version v1.24.6+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+## Why This Exists
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+The default Kubernetes HPA only scales on CPU and Memory. Real
+workloads need to scale on **business metrics**:
 
-```sh
-make docker-build docker-push IMG=<some-registry>/smart-pod-autoscaler:tag
+- 📨 Kafka consumer group lag
+- 📊 Custom Prometheus queries (p99 latency, error rate, request rate)
+- 🐇 RabbitMQ queue depth *(coming soon)*
+- ☁️ AWS SQS queue length *(coming soon)*
+
+## Quick Start
+```bash
+# Add the Helm repo
+helm repo add smart-scaler https://jegson.github.io/smart-pod-autoscaler
+helm repo update
+
+# Install the operator
+helm install smart-scaler smart-scaler/smart-pod-autoscaler \
+  --namespace smart-scaler \
+  --create-namespace
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+## Usage
 
-**Install the CRDs into the cluster:**
-
-```sh
-make install
+Create a `SmartScaler` resource pointing at your deployment:
+```yaml
+apiVersion: autoscaler.autoscaler.io/v1alpha1
+kind: SmartScaler
+metadata:
+  name: worker-scaler
+  namespace: default
+spec:
+  targetDeployment: queue-worker
+  minReplicas: 2
+  maxReplicas: 20
+  metric:
+    source: prometheus
+    endpoint: "http://prometheus:9090"
+    query: "sum(kafka_consumer_group_lag)"
+  scalingPolicy:
+    scaleUpThreshold: 1000   # scale up when lag > 1000 per replica
+    scaleDownThreshold: 100  # scale down when lag < 100 per replica
+    cooldownSeconds: 60      # wait 60s between scaling actions
+```
+```bash
+kubectl apply -f smartscaler.yaml
+kubectl get smartscalers
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
-
-```sh
-make deploy IMG=<some-registry>/smart-pod-autoscaler:tag
+## How It Works
+```
+External Metric (Prometheus/Kafka)
+        │
+        ▼
+SmartScaler Controller (Go)
+        │
+        ├── Fetch metric value
+        ├── Calculate desired replicas
+        ├── Apply cooldown window
+        └── Patch Deployment replicas
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+The controller runs a reconcile loop every 30 seconds, fetches the
+configured metric, and scales the target deployment up or down based
+on your thresholds.
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+## Supported Metric Sources
 
-```sh
-kubectl apply -k config/samples/
+| Source | Status | Config |
+|--------|--------|--------|
+| Prometheus | ✅ Stable | PromQL query |
+| Kafka | ✅ Stable | Consumer group lag |
+| RabbitMQ | 🔜 Coming soon | Queue depth |
+| AWS SQS | 🔜 Coming soon | Queue length |
+
+## Architecture
+```
+smart-pod-autoscaler/
+├── api/v1alpha1/          ← CRD types (SmartScaler)
+├── internal/
+│   ├── controller/        ← reconcile loop
+│   ├── metrics/           ← pluggable metric fetchers
+│   └── webhook/           ← validation + defaulting
+├── helm/                  ← Helm chart
+└── monitoring/            ← Grafana dashboard + Prometheus config
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+## Validation
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+The operator validates your `SmartScaler` at apply time:
 
-```sh
-kubectl delete -k config/samples/
-```
+- `targetDeployment` must be set
+- `minReplicas` must be ≥ 1
+- `maxReplicas` must be > `minReplicas` and ≤ 100
+- `metric.source` must be `prometheus` or `kafka`
+- `scaleUpThreshold` must be > `scaleDownThreshold`
 
-**Delete the APIs(CRDs) from the cluster:**
+## Observability
 
-```sh
-make uninstall
-```
+The controller exposes Prometheus metrics at `:8080/metrics`:
 
-**UnDeploy the controller from the cluster:**
+| Metric | Type | Description |
+|--------|------|-------------|
+| `smartscaler_scale_up_total` | Counter | Total scale up actions |
+| `smartscaler_scale_down_total` | Counter | Total scale down actions |
+| `smartscaler_current_replicas` | Gauge | Current replica count |
+| `smartscaler_current_metric_value` | Gauge | Current metric value |
+| `smartscaler_reconcile_errors_total` | Counter | Reconcile errors |
 
-```sh
-make undeploy
-```
+A pre-built Grafana dashboard is included in `monitoring/`.
 
-## Project Distribution
+## Helm Values
 
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/smart-pod-autoscaler:tag
-```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/smart-pod-autoscaler/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v2-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
+| Key | Default | Description |
+|-----|---------|-------------|
+| `replicaCount` | `2` | Controller replicas (HA) |
+| `image.repository` | `ghcr.io/jegson/smart-pod-autoscaler` | Image |
+| `image.tag` | `latest` | Image tag |
+| `resources.limits.cpu` | `500m` | CPU limit |
+| `resources.limits.memory` | `128Mi` | Memory limit |
+| `metrics.enabled` | `true` | Expose Prometheus metrics |
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+Contributions are welcome! The easiest way to contribute is adding
+a new metric source:
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+1. Create `internal/metrics/yoursource.go`
+2. Implement the `MetricFetcher` interface:
+```go
+   type MetricFetcher interface {
+       Fetch(ctx context.Context) (int64, error)
+   }
+```
+3. Add a case in `fetchMetric()` in the controller
+4. Add tests in `internal/metrics/yoursource_test.go`
+5. Submit a PR!
+
+## Roadmap
+
+- [ ] RabbitMQ metric source
+- [ ] AWS SQS metric source
+- [ ] Predictive scaling (ML-based)
+- [ ] Multi-metric scaling (combine sources)
+- [ ] Grafana dashboard on Grafana Cloud
+- [ ] Helm chart on Artifact Hub
 
 ## License
 
-Copyright 2026.
+MIT — see [LICENSE](LICENSE)
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+## Author
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Built by [JEGSON](https://github.com/JEGSON) — jegsonola.oj@gmail.com

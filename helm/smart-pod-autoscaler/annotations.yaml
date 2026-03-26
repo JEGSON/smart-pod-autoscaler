@@ -1,0 +1,22 @@
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/maintainers: |
+    - name: JEGSON
+      email: jegsonola.oj@gmail.com
+  artifacthub.io/description: >
+    A production-grade Kubernetes operator written in Go that scales
+    deployments based on external metrics from Prometheus and Kafka,
+    going beyond what the default HPA supports.
+  artifacthub.io/keywords: |
+    - kubernetes
+    - autoscaler
+    - operator
+    - prometheus
+    - kafka
+    - devops
+    - go
+  artifacthub.io/links: |
+    - name: GitHub
+      url: https://github.com/JEGSON/smart-pod-autoscaler
+    - name: Helm Chart
+      url: https://jegson.github.io/smart-pod-autoscaler

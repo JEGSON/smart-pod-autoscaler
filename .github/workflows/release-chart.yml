@@ -1,67 +1,8 @@
 name: Release Helm Chart
-
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "helm/**"
-
+  workflow_dispatch:   # only runs when manually triggered now
 jobs:
   release:
     runs-on: ubuntu-latest
-
-    # Use Helm container (no sudo issues)
-    container:
-      image: alpine/helm:3.14.0
-
-    permissions:
-      contents: write
-
     steps:
-      - name: Install dependencies
-        run: apk add --no-cache git bash curl
-
-      - name: Checkout main repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global --add safe.directory '*'
-
-      - name: Package Helm chart
-        run: |
-          mkdir -p .chart-packages
-          helm dependency update helm/smart-pod-autoscaler || true
-          helm package helm/smart-pod-autoscaler --destination .chart-packages
-          ls -la .chart-packages/
-
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-
-      - name: Update Helm repo index
-        run: |
-          cp .chart-packages/*.tgz gh-pages/
-
-          helm repo index gh-pages/ \
-            --url https://jegson.github.io/smart-pod-autoscaler \
-            --merge gh-pages/index.yaml || \
-          helm repo index gh-pages/ \
-            --url https://jegson.github.io/smart-pod-autoscaler
-
-          cat gh-pages/index.yaml
-
-      - name: Commit and push changes
-        run: |
-          cd gh-pages
-          git add .
-          git diff --staged --quiet && echo "Nothing to commit" && exit 0
-          git commit -m "chore: release chart $(date +'%Y-%m-%d %H:%M:%S')"
-          git push origin gh-pages
+      - run: echo "Chart is published manually to gh-pages"

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write      # needed to push to ghcr.io
+      packages: write
 
     steps:
       - name: Checkout
@@ -32,5 +32,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/JEGSON/smart-pod-autoscaler:latest
-            ghcr.io/JEGSON/smart-pod-autoscaler:${{ github.sha }}
+            ghcr.io/jegson/smart-pod-autoscaler:latest
+            ghcr.io/jegson/smart-pod-autoscaler:${{ github.sha }}
